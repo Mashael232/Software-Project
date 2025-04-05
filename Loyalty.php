@@ -244,8 +244,7 @@ font-size: 0.8em;
         </table>
 		<p style="font-size: 0.8em;">you can reedem your points with discounts from our order pages if you have 50 points reedem them for 50 riyals</p>
     </div>
-
-    <script>
+<script>
     if (localStorage.getItem("loyaltyPoints") === null) {
         localStorage.setItem("loyaltyPoints", "50");
     }
@@ -255,28 +254,27 @@ font-size: 0.8em;
         document.getElementById("loyaltyPoints").innerText = `Your Points: ${userPoints}`;
     }
 
-    function addPoints(amountSpent) {
-        let userPoints = parseInt(localStorage.getItem("loyaltyPoints")) || 0;
-        let earnedPoints = Math.floor(amountSpent / 0.5); 
-        userPoints += earnedPoints;
-        localStorage.setItem("loyaltyPoints", userPoints);
-        updateLoyaltyPoints();
+    function sendPointsToDB() {
+        const userPoints = localStorage.getItem("loyaltyPoints");
+        if (userPoints !== null) {
+            fetch("loyalty.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: `updatePoints=${userPoints}`
+            })
+            .then(response => response.text())
+            .then(data => {
+                console.log("Response from server:", data);
+            });
+        }
     }
 
-    function redeemPoints() {
-        let userPoints = parseInt(localStorage.getItem("loyaltyPoints")) || 0;
-        let discount = Math.min(userPoints * 0.5, 50); 
-        let remainingPoints = userPoints - Math.floor(discount / 0.5);
-        
-        localStorage.setItem("loyaltyPoints", remainingPoints);
+    window.onload = function () {
         updateLoyaltyPoints();
-        alert(`You redeemed ${Math.floor(discount / 0.5)} points for a discount of ${discount} SAR!`);
-    }
-
-    window.onload = updateLoyaltyPoints;
-	
-	
-
+        sendPointsToDB(); 
+    };
 </script>
 
 
@@ -316,4 +314,31 @@ font-size: 0.8em;
 </html>
 
 
+<?php
+session_start();
 
+$host = "localhost";
+$user = "root";
+$password = "root";
+$database = "wisaldb";
+
+$conn = new mysqli($host, $user, $password, $database , 8889);
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+if (isset($_SESSION['userID']) && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['updatePoints'])) {
+    $userID = $_SESSION['userID'];
+    $points = intval($_POST['updatePoints']);
+
+    $stmt = $conn->prepare("UPDATE users SET LoyaltyPoints = ? WHERE userID = ?");
+    $stmt->bind_param("ii", $points, $userID);
+    if ($stmt->execute()) {
+        echo "loyalty points updated";
+    } else {
+        echo "error";
+    }
+    $stmt->close();
+    exit(); 
+}
+?>
